@@ -213,6 +213,11 @@ main { padding-top: 12px; padding-bottom: 32px; }
     <p class="ajustes-intro">Pon los valores de tu tienda. Se guardan solo en este celular.</p>
     <div class="card form" id="formAjustes"></div>
     <button class="btn prim" id="ajustesListo">Listo</button>
+    <p class="ajustes-intro">Guarda este enlace (por ejemplo, mándatelo por WhatsApp). Si cambias de celular o se borran los datos, lo abres y los ajustes se ponen solos.</p>
+    <div class="export">
+      <button class="btn" id="copiarEnlace">Copiar enlace de ajustes</button>
+      <button class="btn" id="compartirEnlace">Compartir enlace</button>
+    </div>
   </section>
 
   <!-- ===== CIERRE ===== -->
@@ -462,6 +467,23 @@ function cargarCFG() {
   });
   return completo;
 }
+// Un enlace como ...#ajustes=valor1,valor2,... carga los ajustes. Los valores viajan solo
+// en el enlace (el # no se manda al servidor) y nunca quedan escritos en el código.
+(function () {
+  var m = /^#ajustes=([0-9.,]+)$/.exec(location.hash);
+  if (!m) return;
+  var vals = m[1].split(',');
+  if (vals.length !== AJUSTES.length || vals.some(function (v) { return validar(v).err || v === ''; })) {
+    setTimeout(function () { toast('El enlace de ajustes no es válido'); }, 300); return;
+  }
+  AJUSTES.forEach(function (a, i) { ajustesTxt[a[0]] = vals[i]; });
+  try { localStorage.setItem(CLAVE_AJUSTES, JSON.stringify(ajustesTxt)); } catch (e) {}
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  setTimeout(function () { toast('Ajustes cargados'); }, 300);
+})();
+function enlaceAjustes() {
+  return location.origin + location.pathname + '#ajustes=' + AJUSTES.map(function (a) { return ajustesTxt[a[0]]; }).join(',');
+}
 var cfgCompleto = cargarCFG();
 $('formAjustes').innerHTML = AJUSTES.map(function (a) {
   return '<div class="field"><label for="aj-' + a[0] + '">' + a[1] + (a[2] ? '<span>' + a[2] + '</span>' : '') +
@@ -485,6 +507,15 @@ $('formAjustes').oninput = function (ev) {
   ajustesTxt[k] = v;
   try { localStorage.setItem(CLAVE_AJUSTES, JSON.stringify(ajustesTxt)); } catch (e) {}
   cfgCompleto = cargarCFG(); pintarAjustes();
+};
+$('copiarEnlace').onclick = function () {
+  if (!cfgCompleto) { toast('Completa todos los valores primero'); return; }
+  copiar(enlaceAjustes(), 'Enlace copiado');
+};
+if (!navigator.share) { $('compartirEnlace').hidden = true; $('copiarEnlace').className += ' full'; }
+$('compartirEnlace').onclick = function () {
+  if (!cfgCompleto) { toast('Completa todos los valores primero'); return; }
+  navigator.share({ title: 'Ajustes de cierre de caja', url: enlaceAjustes() }).catch(function () {});
 };
 $('ajustesListo').onclick = function () {
   if (!cfgCompleto) { toast('Completa todos los valores'); return; }
@@ -763,17 +794,17 @@ function csvReporte() {
   }
   return '﻿' + F.map(function (f) { return f.map(q).join(','); }).join('\r\n');
 }
-$('copiar').onclick = function () {
-  var txt = textoReporte();
+function copiar(txt, msg) {
   function plan() {
     var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta);
     ta.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(ta); toast(ok ? 'Copiado' : 'No se pudo copiar');
+    document.body.removeChild(ta); toast(ok ? msg : 'No se pudo copiar');
   }
   if (navigator.clipboard && navigator.clipboard.writeText)
-    navigator.clipboard.writeText(txt).then(function () { toast('Copiado'); }, plan);
+    navigator.clipboard.writeText(txt).then(function () { toast(msg); }, plan);
   else plan();
-};
+}
+$('copiar').onclick = function () { copiar(textoReporte(), 'Copiado'); };
 if (!navigator.share) { $('compartir').hidden = true; $('copiar').className += ' full'; }
 $('compartir').onclick = function () {
   navigator.share({ title: 'Cierre de caja', text: textoReporte() }).catch(function () {});
@@ -794,6 +825,7 @@ $('nuevo').onclick = function () {
 // ---------- Inicio ----------
 pintarTema();
 irA(S.tab || 'contar');
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 </script>
 </body>

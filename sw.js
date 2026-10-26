@@ -1,6 +1,6 @@
 // Guarda la app en el celular para que abra rápido y funcione sin internet.
 // Al cambiar index.html, sube la versión para forzar la actualización.
-var VERSION = 'cierre-v4';
+var VERSION = 'cierre-v5';
 var ARCHIVOS = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
